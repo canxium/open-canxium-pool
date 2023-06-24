@@ -1,11 +1,11 @@
 {
 	"threads": 4,
-	"coin": "etc",
+	"coin": "cau",
 	"name": "main",
     "pplns": 9000,
-	"network": "classic",
+	"network": "canxium",
 	"algo": "etchash",
-	"coin-name":"etc",
+	"coin-name":"cau",
 
 	"proxy": {
 		"enabled": true,
