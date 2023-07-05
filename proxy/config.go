@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/yuriy0803/open-etc-pool-friends/api"
 	"github.com/yuriy0803/open-etc-pool-friends/exchange"
 	"github.com/yuriy0803/open-etc-pool-friends/payouts"
@@ -24,6 +25,12 @@ type Config struct {
 	Redis    storage.Config `json:"redis"`
 	CoinName string         `json:"coin-name"`
 
+	// offline mining
+	Coinbase   common.Address `json:"coinbase"`
+	Algorithm  uint8          `json:"algorithm"`
+	ChainId    int64          `json:"chainId"`
+	Difficulty int64          `json:"difficulty"`
+
 	BlockUnlocker payouts.UnlockerConfig `json:"unlocker"`
 	Payouts       payouts.PayoutsConfig  `json:"payouts"`
 
@@ -33,6 +40,10 @@ type Config struct {
 	NewrelicKey     string `json:"newrelicKey"`
 	NewrelicVerbose bool   `json:"newrelicVerbose"`
 	NewrelicEnabled bool   `json:"newrelicEnabled"`
+}
+
+func (c *Config) IsOfflineMining() bool {
+	return c.Algorithm != 0
 }
 
 type Proxy struct {

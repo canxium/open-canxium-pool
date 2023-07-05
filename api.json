@@ -4,8 +4,13 @@
 	"name": "main",
     "pplns": 9000,
 	"network": "canxium",
-	"algo": "etchash",
+	"algo": "ethash",
 	"coin-name":"cau",
+
+	"coinbase": "0x390127d12612391313077c6b8016fe2befe0eb20",
+	"algorithm": 1,
+	"chainId": 30031003,
+	"difficulty": 1000000000,
 
 	"proxy": {
 		"enabled": true,
@@ -15,7 +20,7 @@
 		"behindReverseProxy": false,
 		"blockRefreshInterval": "120ms",
 		"stateUpdateInterval": "3s",
-		"difficulty": 8589934592,
+		"difficulty": 1000000000,
 		"hashrateExpiration": "3h",
 
 		"healthCheck": true,
@@ -28,8 +33,8 @@
 			"timeout": "120s",
 			"maxConn": 8192,
 			"tls": false,
-                        "certFile": "/path/to/cert.pem",
-                        "keyFile": "/path/to/key.pem"
+			"certFile": "/path/to/cert.pem",
+			"keyFile": "/path/to/key.pem"
 		},
 
 		"policy": {
@@ -69,11 +74,11 @@
 		"poolCharts":"0 */20 * * * *",
 		"poolChartsNum":74,
 		"minerCharts":"0 */20 * * * *",
-                "minerChartsNum":74,
-                "netCharts":"0 */20 * * * *",
-                "netChartsNum":74,
-                "shareCharts":"0 */20 * * * *",
-                "shareChartsNum":74
+		"minerChartsNum":74,
+		"netCharts":"0 */20 * * * *",
+		"netChartsNum":74,
+		"shareCharts":"0 */20 * * * *",
+		"shareChartsNum":74
 	},
 
 	"upstreamCheckInterval": "5s",
@@ -81,11 +86,6 @@
 		{
 			"name": "main",
 			"url": "http://127.0.0.1:8545",
-			"timeout": "10s"
-		},
-		{
-			"name": "backup",
-			"url": "http://127.0.0.2:8545",
 			"timeout": "10s"
 		}
 	],
@@ -95,28 +95,28 @@
 		"poolSize": 10,
 		"database": 0,
 		"password": "",
-                "sentinelEnabled": false,
-                "masterName": "mymaster",
-                "sentinelAddrs": [
-            		"127.0.0.1:26379",
-           	        "127.0.0.1:26389",
-           	        "127.0.0.1:26399"
+		"sentinelEnabled": false,
+		"masterName": "mymaster",
+		"sentinelAddrs": [
+			"127.0.0.1:26379",
+			"127.0.0.1:26389",
+			"127.0.0.1:26399"
         ]
 	},
   
 	"exchange": {
-		   "enabled": true,
-		   "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ethereum-classic",
-		   "timeout": "50s",
-		   "refreshInterval": "900s"
+		"enabled": true,
+		"url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ethereum-classic",
+		"timeout": "50s",
+		"refreshInterval": "900s"
     },
 
 	"unlocker": {
 		"enabled": true,
 		"poolFee": 1.0,
 		"poolFeeAddress": "",
-		"depth": 120,
-		"immatureDepth": 20,
+		"depth": 32,
+		"immatureDepth": 16,
 		"keepTxFees": false,
 		"interval": "10m",
 		"daemon": "http://127.0.0.1:8545",

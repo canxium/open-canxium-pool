@@ -51,10 +51,11 @@ type GetBlockReplyPart struct {
 const receiptStatusSuccessful = "0x1"
 
 type TxReceipt struct {
-	TxHash    string `json:"transactionHash"`
-	GasUsed   string `json:"gasUsed"`
-	BlockHash string `json:"blockHash"`
-	Status    string `json:"status"`
+	TxHash      string `json:"transactionHash"`
+	GasUsed     string `json:"gasUsed"`
+	BlockHash   string `json:"blockHash"`
+	BlockNumber string `json:"blockNumber"`
+	Status      string `json:"status"`
 }
 
 func (r *TxReceipt) Confirmed() bool {
@@ -220,6 +221,26 @@ func (r *RPCClient) SendTransaction(from, to, gas, gasPrice, value string, autoG
 	}
 
 	rpcResp, err := r.doPost(r.Url, "eth_sendTransaction", []interface{}{params})
+	var reply string
+	if err != nil {
+		return reply, err
+	}
+	err = json.Unmarshal(*rpcResp.Result, &reply)
+	if err != nil {
+		return reply, err
+	}
+	/* There is an inconsistence in a "standard". Geth returns error if it can't unlock signer account,
+	 * but Parity returns zero hash 0x000... if it can't send tx, so we must handle this case.
+	 * https://github.com/ethereum/wiki/wiki/JSON-RPC#returns-22
+	 */
+	if util.IsZeroHash(reply) {
+		err = errors.New("transaction is not yet available")
+	}
+	return reply, err
+}
+
+func (r *RPCClient) SendRawTransaction(rawTx string) (string, error) {
+	rpcResp, err := r.doPost(r.Url, "eth_sendRawTransaction", []string{rawTx})
 	var reply string
 	if err != nil {
 		return reply, err
