@@ -3,7 +3,7 @@ import config from './params/config.json'
 
 export default {
   server: {
-    host: '192.168.8.169' // default: localhost  sudo npm run dev
+    host: '0.0.0.0' // default: localhost  sudo npm run dev
   },
   // Disable server-side rendering (https://go.nuxtjs.dev/ssr-mode)
   ssr: false,

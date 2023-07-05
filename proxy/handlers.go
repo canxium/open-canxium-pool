@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -86,6 +87,7 @@ func (s *ProxyServer) handleTCPSubmitRPC(cs *Session, id string, params []string
 }
 
 func (s *ProxyServer) handleSubmitRPC(cs *Session, login, id string, params []string) (bool, *ErrorReply) {
+	fmt.Printf("Handle new share submited: %s, %s, %+v\n", login, id, params)
 	// Check if the number of parameters is correct
 	if len(params) != 3 {
 		s.policy.ApplyMalformedPolicy(cs.ip)

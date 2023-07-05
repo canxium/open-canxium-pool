@@ -98,6 +98,8 @@ type BlockData struct {
 	ImmatureReward string   `json:"-"`
 	RewardString   string   `json:"reward"`
 	RoundHeight    int64    `json:"-"`
+	RawTx          string   `json:"rawTx"`
+	TxHash         string   `json:"txHash"`
 	candidateKey   string
 	immatureKey    string
 }
@@ -134,7 +136,7 @@ func (b *BlockData) RoundKey() string {
 }
 
 func (b *BlockData) key() string {
-	return join(b.UncleHeight, b.Orphan, b.Nonce, b.serializeHash(), b.Timestamp, b.Difficulty, b.TotalShares, b.Reward, b.Login, b.ShareDiffCalc, b.Worker)
+	return join(b.UncleHeight, b.Orphan, b.Nonce, b.serializeHash(), b.Timestamp, b.Difficulty, b.TotalShares, b.Reward, b.Login, b.ShareDiffCalc, b.Worker, b.RawTx, b.TxHash)
 }
 
 type Miner struct {
@@ -624,7 +626,7 @@ func (r *RedisClient) WriteShare(login, id string, params []string, diff int64, 
 	return false, err
 }
 
-func (r *RedisClient) WriteBlock(login, id string, params []string, diff, shareDiffCalc int64, roundDiff int64, height uint64, window time.Duration) (bool, error) {
+func (r *RedisClient) WriteBlock(login, id string, params []string, diff, shareDiffCalc int64, roundDiff int64, height uint64, window time.Duration, rawTx string, txHash string) (bool, error) {
 	exist, err := r.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
@@ -683,7 +685,7 @@ func (r *RedisClient) WriteBlock(login, id string, params []string, diff, shareD
 			totalShares += n
 		}
 		hashHex := strings.Join(params, ":")
-		s := join(hashHex, ts, roundDiff, totalShares, login, shareDiffCalc, id)
+		s := join(hashHex, ts, roundDiff, totalShares, login, shareDiffCalc, id, rawTx, txHash)
 		cmd := r.client.ZAdd(r.formatKey("blocks", "candidates"), redis.Z{Score: float64(height), Member: s})
 		return false, cmd.Err()
 	}
@@ -1532,7 +1534,7 @@ func (a TimestampSorter) Less(i, j int) bool { return a[i].Timestamp < a[j].Time
 func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, v := range raw.Val() {
-		// "nonce:powHash:mixDigest:timestamp:diff:totalShares"
+		// "nonce:powHash:mixDigest:timestamp:diff:totalShares:rawTx:txHash"
 		block := BlockData{}
 		block.Height = int64(v.Score)
 		block.RoundHeight = block.Height
@@ -1546,6 +1548,8 @@ func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 		block.Login = fields[6]
 		block.ShareDiffCalc, _ = strconv.ParseInt(fields[7], 10, 64)
 		block.Worker = fields[8]
+		block.RawTx = fields[9]
+		block.TxHash = fields[10]
 		block.candidateKey = v.Member.(string)
 		result = append(result, &block)
 	}
@@ -1576,7 +1580,7 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, row := range rows {
 		for _, v := range row.Val() {
-			// "uncleHeight:orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInWei"
+			// "uncleHeight:orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInWei:rawTx:txHash"
 			block := BlockData{}
 			block.Height = int64(v.Score)
 			block.RoundHeight = block.Height
@@ -1594,6 +1598,8 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.Login = fields[8]
 			block.ShareDiffCalc, _ = strconv.ParseInt(fields[9], 10, 64)
 			block.Worker = fields[10]
+			block.RawTx = fields[11]
+			block.TxHash = fields[12]
 			block.immatureKey = v.Member.(string)
 			result = append(result, &block)
 		}

@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus/canxium"
 
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/storage"
@@ -59,6 +61,13 @@ var octaspaceStartReward = big.NewInt(650e+16)
 // params for expanse
 const byzantiumHardForkHeight = 800000
 
+// params for canxium
+const HydroForkBlock = 4204800
+
+var CanxiumFoundationRewardPercent = big.NewInt(2)
+var PreHydroReward = big.NewInt(1875e14)
+var HydroRewardPerHash = big.NewInt(500)
+
 var homesteadExpanseReward = math.MustParseBig256("8000000000000000000")
 var byzantiumExpanseReward = math.MustParseBig256("4000000000000000000")
 
@@ -66,6 +75,7 @@ var byzantiumExpanseReward = math.MustParseBig256("4000000000000000000")
 var big32 = big.NewInt(32)
 var big8 = big.NewInt(8)
 var big2 = big.NewInt(2)
+var big100 = big.NewInt(100)
 
 // Donate 1% from pool fees to developers
 const donationFee = 1.0
@@ -110,6 +120,8 @@ func NewBlockUnlocker(cfg *UnlockerConfig, backend *storage.RedisClient, network
 	} else if network == "octaspace" {
 		// nothing needs configuring here, simply proceed.
 	} else if network == "universal" {
+		// nothing needs configuring here, simply proceed.
+	} else if network == "canxium" {
 		// nothing needs configuring here, simply proceed.
 	} else {
 		log.Fatalln("Invalid network set", network)
@@ -169,11 +181,57 @@ type UnlockResult struct {
  * to make sure we will find it. We can't rely on round height here, it's just a reference point.
  * ISSUE: https://github.com/ethereum/go-ethereum/issues/2333
  */
-func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*UnlockResult, error) {
+func (u *BlockUnlocker) unlockCandidates(block int64, candidates []*storage.BlockData) (*UnlockResult, error) {
 	result := &UnlockResult{}
 
-	// Data row is: "height:nonce:powHash:mixDigest:timestamp:diff:totalShares"
+	// Data row is: "height:nonce:powHash:mixDigest:timestamp:diff:totalShares:rawTx:txHash"
 	for _, candidate := range candidates {
+		if candidate.RawTx != "" {
+			if candidate.TxHash == (common.Hash{}.String()) {
+				// for some reason, this tx is not yet send to the network
+				//TODO resend it and write back to redis
+				continue
+			}
+
+			// offline mining tx
+			receipt, err := u.rpc.GetTxReceipt(candidate.TxHash)
+			if err != nil {
+				log.Printf("Error while retrieving tx receipt: %s, err: %+v\n", candidate.TxHash, err)
+				continue
+			}
+
+			if receipt.Status != "0x1" {
+				log.Printf("Offline tx %s receipt failed: %s\n", candidate.TxHash, receipt.Status)
+				result.orphans++
+				candidate.Orphan = true
+				result.orphanedBlocks = append(result.orphanedBlocks, candidate)
+				log.Printf("Orphaned tx %v:%v", candidate.Height, candidate.TxHash)
+				continue
+			}
+
+			blockNumber, err := strconv.ParseInt(strings.Replace(receipt.BlockNumber, "0x", "", -1), 16, 64)
+			if err != nil {
+				log.Printf("Can't parse pending block number: %v", err)
+				continue
+			}
+
+			// not enough confirmation
+			if blockNumber >= block {
+				continue
+			}
+
+			err = u.handleOfflineTx(candidate)
+			if err != nil {
+				u.halt = true
+				u.lastFail = err
+				return nil, err
+			}
+
+			result.maturedBlocks = append(result.maturedBlocks, candidate)
+			log.Printf("Mature offline tx, nonce: %v, hash: %v, block: %d", candidate.Height, candidate.TxHash, blockNumber)
+			continue
+		}
+
 		orphan := true
 
 		/* Search for a normal block with wrong height here by traversing 16 blocks back and forward.
@@ -186,6 +244,7 @@ func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*Unlo
 		}
 		for i := int64(minDepth * -1); i < minDepth; i++ {
 			height := candidate.Height + i
+			fmt.Printf("%d: %+v\n", height, candidate)
 
 			if height < 0 {
 				continue
@@ -198,7 +257,7 @@ func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*Unlo
 				return nil, err
 			}
 			if block == nil {
-				return nil, fmt.Errorf("Error while retrieving block %v from node, wrong node height", height)
+				return nil, fmt.Errorf("error while retrieving block %v from node, wrong node height", height)
 			}
 
 			if matchCandidate(block, candidate) {
@@ -224,10 +283,10 @@ func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*Unlo
 			for uncleIndex, uncleHash := range block.Uncles {
 				uncle, err := u.rpc.GetUncleByBlockNumberAndIndex(height, uncleIndex)
 				if err != nil {
-					return nil, fmt.Errorf("Error while retrieving uncle of block %v from node: %v", uncleHash, err)
+					return nil, fmt.Errorf("error while retrieving uncle of block %v from node: %v", uncleHash, err)
 				}
 				if uncle == nil {
-					return nil, fmt.Errorf("Error while retrieving uncle of block %v from node", height)
+					return nil, fmt.Errorf("error while retrieving uncle of block %v from node", height)
 				}
 
 				// Found uncle
@@ -347,6 +406,8 @@ func (u *BlockUnlocker) handleBlock(block *rpc.GetBlockReply, candidate *storage
 		uncleReward := new(big.Int).Div(reward, big32)
 		rewardForUncles := big.NewInt(0).Mul(uncleReward, big.NewInt(int64(len(block.Uncles))))
 		reward.Add(reward, rewardForUncles)
+	} else if u.config.Network == "canxium" {
+		reward = getConstRewardCanxium(candidate.Height, candidate.Difficulty)
 	} else {
 		log.Fatalln("Invalid network set", u.config.Network)
 	}
@@ -354,7 +415,7 @@ func (u *BlockUnlocker) handleBlock(block *rpc.GetBlockReply, candidate *storage
 	// Add TX fees
 	extraTxReward, err := u.getExtraRewardForTx(block)
 	if err != nil {
-		return fmt.Errorf("Error while fetching TX receipt: %v", err)
+		return fmt.Errorf("error while fetching TX receipt: %v", err)
 	}
 	if u.config.KeepTxFees {
 		candidate.ExtraReward = extraTxReward
@@ -385,6 +446,16 @@ func (u *BlockUnlocker) handleBlock(block *rpc.GetBlockReply, candidate *storage
 	return nil
 }
 
+func (u *BlockUnlocker) handleOfflineTx(candidate *storage.BlockData) error {
+	candidate.ExtraReward = big.NewInt(0)
+
+	candidate.Orphan = false
+	candidate.Hash = candidate.TxHash
+	difficulty := new(big.Int).SetInt64(candidate.Difficulty)
+	candidate.Reward, _, _ = txMiningReward(difficulty)
+	return nil
+}
+
 func handleUncle(height int64, uncle *rpc.GetBlockReply, candidate *storage.BlockData, cfg *UnlockerConfig) error {
 	uncleHeight, err := strconv.ParseInt(strings.Replace(uncle.Number, "0x", "", -1), 16, 64)
 	if err != nil {
@@ -410,6 +481,8 @@ func handleUncle(height int64, uncle *rpc.GetBlockReply, candidate *storage.Bloc
 		reward = getUncleRewardOctaspace(new(big.Int).SetInt64(uncleHeight), new(big.Int).SetInt64(height), getConstRewardOctaspace(height))
 	} else if cfg.Network == "universal" {
 		reward = getUncleRewardUniversal(new(big.Int).SetInt64(uncleHeight), new(big.Int).SetInt64(height), getConstRewardUniversal(height))
+	} else if cfg.Network == "canxium" {
+		reward = big.NewInt(0)
 	}
 
 	candidate.Height = height
@@ -442,6 +515,7 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 		return
 	}
 
+	depth := currentHeight - u.config.ImmatureDepth
 	candidates, err := u.backend.GetCandidates(currentHeight - u.config.ImmatureDepth)
 	if err != nil {
 		u.halt = true
@@ -455,7 +529,7 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 		return
 	}
 
-	result, err := u.unlockCandidates(candidates)
+	result, err := u.unlockCandidates(depth, candidates)
 	if err != nil {
 		u.halt = true
 		u.lastFail = err
@@ -545,7 +619,8 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 		return
 	}
 
-	immature, err := u.backend.GetImmatureBlocks(currentHeight - u.config.Depth)
+	depth := currentHeight - u.config.Depth
+	immature, err := u.backend.GetImmatureBlocks(depth)
 	if err != nil {
 		u.halt = true
 		u.lastFail = err
@@ -558,7 +633,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 		return
 	}
 
-	result, err := u.unlockCandidates(immature)
+	result, err := u.unlockCandidates(depth, immature)
 	if err != nil {
 		u.halt = true
 		u.lastFail = err
@@ -769,6 +844,18 @@ func getConstRewardEthereumpow(height int64) *big.Int {
 	return calcBigNumber(2.0)
 }
 
+func getConstRewardCanxium(height int64, difficulty int64) *big.Int {
+	if height < HydroForkBlock {
+		return PreHydroReward
+	}
+
+	reward := HydroRewardPerHash.Mul(HydroRewardPerHash, big.NewInt(difficulty))
+	foundation := new(big.Int).Mul(CanxiumFoundationRewardPercent, reward)
+	foundation.Div(foundation, big.NewInt(100))
+	reward.Sub(reward, foundation)
+	return reward
+}
+
 // ubqhash
 func getConstRewardUbiq(height int64) *big.Int {
 	// Rewards
@@ -968,4 +1055,21 @@ func getUncleRewardExpanse(uHeight *big.Int, height *big.Int, reward *big.Int) *
 	r.Div(r, big8)
 
 	return r
+}
+
+func txMiningReward(difficulty *big.Int) (reward, foundation, coinbase *big.Int) {
+	reward = new(big.Int).Mul(canxium.CanxiumMiningTxRewardPerHash, difficulty)
+	foundationPercent := canxium.CanxiumMiningTxFoundationPercent
+	coinbasePercent := canxium.CanxiumMiningTxCoinbasePercent
+
+	// Accumulate the rewards for the miner
+	// send reward to foundation wallet
+	foundation = new(big.Int).Mul(foundationPercent, reward)
+	foundation.Div(foundation, big100)
+	coinbase = new(big.Int).Mul(coinbasePercent, reward)
+	coinbase.Div(foundation, big100)
+	reward.Sub(reward, foundation)
+	reward.Sub(reward, coinbase)
+
+	return
 }

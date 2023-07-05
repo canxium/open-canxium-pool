@@ -203,6 +203,9 @@ func (s *ApiServer) collectnetCharts() {
 		log.Printf("Failed to fetch Diff charts from backend: %v", erro)
 		return
 	}
+	if len(nodes) <= 0 {
+		return
+	}
 	diff := fmt.Sprint(nodes[0]["difficulty"])
 	log.Println("Difficulty Hash is ", ts, t2, diff)
 	err := s.backend.WriteDiffCharts(ts, t2, diff)
