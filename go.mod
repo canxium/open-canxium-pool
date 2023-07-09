@@ -2,7 +2,7 @@ module github.com/yuriy0803/open-etc-pool-friends
 
 go 1.18
 
-replace github.com/ethereum/go-ethereum v1.11.6 => github.com/canxium/go-canxium v0.1.2-0.20230629031928-423056791c45
+replace github.com/ethereum/go-ethereum v1.11.6 => github.com/canxium/go-canxium v0.1.1-0.20230709035518-0c4c4b91317a
 
 require (
 	github.com/ethereum/go-ethereum v1.11.6

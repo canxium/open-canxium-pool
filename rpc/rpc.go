@@ -289,7 +289,7 @@ func (r *RPCClient) doPost(url string, method string, params interface{}) (*JSON
 }
 
 func (r *RPCClient) Check() bool {
-	_, err := r.GetWork()
+	_, err := r.GetPendingBlock()
 	if err != nil {
 		return false
 	}

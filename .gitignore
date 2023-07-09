@@ -6,3 +6,5 @@ testnet.json
 /build/bin/
 # IdeaIDE  (JetBrains stuff)
 .idea/
+www/node_modules/
+new-web/node_modules/

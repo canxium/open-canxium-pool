@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/canxium"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/storage"
@@ -64,9 +65,7 @@ const byzantiumHardForkHeight = 800000
 // params for canxium
 const HydroForkBlock = 4204800
 
-var CanxiumFoundationRewardPercent = big.NewInt(2)
 var PreHydroReward = big.NewInt(1875e14)
-var HydroRewardPerHash = big.NewInt(500)
 
 var homesteadExpanseReward = math.MustParseBig256("8000000000000000000")
 var byzantiumExpanseReward = math.MustParseBig256("4000000000000000000")
@@ -200,7 +199,7 @@ func (u *BlockUnlocker) unlockCandidates(block int64, candidates []*storage.Bloc
 				continue
 			}
 
-			if receipt.Status != "0x1" {
+			if receipt == nil || receipt.Status != "0x1" {
 				log.Printf("Offline tx %s receipt failed: %s\n", candidate.TxHash, receipt.Status)
 				result.orphans++
 				candidate.Orphan = true
@@ -849,8 +848,8 @@ func getConstRewardCanxium(height int64, difficulty int64) *big.Int {
 		return PreHydroReward
 	}
 
-	reward := HydroRewardPerHash.Mul(HydroRewardPerHash, big.NewInt(difficulty))
-	foundation := new(big.Int).Mul(CanxiumFoundationRewardPercent, reward)
+	reward := new(big.Int).Mul(ethash.CanxiumBlockRewardPerHash, big.NewInt(difficulty))
+	foundation := new(big.Int).Mul(ethash.CanxiumFoundationRewardPercent, reward)
 	foundation.Div(foundation, big.NewInt(100))
 	reward.Sub(reward, foundation)
 	return reward
@@ -1059,15 +1058,13 @@ func getUncleRewardExpanse(uHeight *big.Int, height *big.Int, reward *big.Int) *
 
 func txMiningReward(difficulty *big.Int) (reward, foundation, coinbase *big.Int) {
 	reward = new(big.Int).Mul(canxium.CanxiumMiningTxRewardPerHash, difficulty)
-	foundationPercent := canxium.CanxiumMiningTxFoundationPercent
-	coinbasePercent := canxium.CanxiumMiningTxCoinbasePercent
 
 	// Accumulate the rewards for the miner
 	// send reward to foundation wallet
-	foundation = new(big.Int).Mul(foundationPercent, reward)
+	foundation = new(big.Int).Mul(canxium.CanxiumMiningTxFoundationPercent, reward)
 	foundation.Div(foundation, big100)
-	coinbase = new(big.Int).Mul(coinbasePercent, reward)
-	coinbase.Div(foundation, big100)
+	coinbase = new(big.Int).Mul(canxium.CanxiumMiningTxCoinbasePercent, reward)
+	coinbase.Div(coinbase, big100)
 	reward.Sub(reward, foundation)
 	reward.Sub(reward, coinbase)
 
