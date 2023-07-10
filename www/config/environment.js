@@ -14,7 +14,7 @@ module.exports = function(environment) {
       },
   
       APP: {
-        explorer: 'https://explorer.canxium.org',
+        Explorer: 'https://explorer.canxium.org/',
         // API host and port
         ApiUrl: '//192.168.178.27/',
   

@@ -14,7 +14,7 @@
     <tbody>
       {{#each model.candidates as |block|}}
       <tr>
-        <a href="{{config.explorer}}/tx/{{block.txHash}}" class="hash" rel="nofollow" target="_blank">{{format-tx block.txHash}}</a>
+        <a href="{{block.txHashUri}}" class="hash" rel="nofollow" target="_blank">{{format-tx block.txHash}}</a>
         <td>{{#link-to 'account' block.login class='hash'}}{{block.login}}{{/link-to}}</td>
 		    <td>{{format-date-locale block.timestamp}}</td>
         <td>
