@@ -20,7 +20,7 @@
         {{/active-li}}
         {{#active-li currentWhen='blocks' }}
           {{#link-to 'blocks'}}
-            <i class="fa fa-cubes"></i> Pool Blocks
+            <i class="fa fa-cubes"></i> Pool Transactions
             {{#if immatureTotal}}
               <span class="ul">{{immatureTotal}}</span>
             {{/if}}
@@ -34,11 +34,6 @@
         {{#active-li currentWhen='miners' }}
           {{#link-to 'miners'}}
             <i class="fa fa-users"></i> Miners
-          {{/link-to}}
-        {{/active-li}}
-        {{#active-li currentWhen='finders'}}
-          {{#link-to 'finders'}}
-            <i class="fa fa-diamond"></i> Finders
           {{/link-to}}
         {{/active-li}}
         {{#active-li currentWhen='help' }}
