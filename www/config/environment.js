@@ -2,6 +2,7 @@
 
 module.exports = function(environment) {
     var ENV = {
+      explorer: 'https://explorer.canxium.org',
       modulePrefix: 'open-etc-pool',
       environment: environment,
       rootURL: '/',
