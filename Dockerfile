@@ -20,5 +20,7 @@ RUN go mod download
 RUN go build  -o /out/main ./
 RUN cd /app/www/ && npm install -g ember-cli@2.18 && npm install -g bower && npm install && bower install && ember install ember-truth-helpers && npm install jdenticon@2.1.0
 RUN cd /app/www && chmod a+x build.sh && ./build.sh
+EXPOSE 80/tcp
+EXPOSE 8008/tcp
 RUN chmod a+x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]

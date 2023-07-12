@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/canxium"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -186,12 +185,6 @@ func (u *BlockUnlocker) unlockCandidates(block int64, candidates []*storage.Bloc
 	// Data row is: "height:nonce:powHash:mixDigest:timestamp:diff:totalShares:rawTx:txHash"
 	for _, candidate := range candidates {
 		if candidate.RawTx != "" {
-			if candidate.TxHash == (common.Hash{}.String()) {
-				// for some reason, this tx is not yet send to the network
-				//TODO resend it and write back to redis
-				continue
-			}
-
 			// offline mining tx
 			receipt, err := u.rpc.GetTxReceipt(candidate.TxHash)
 			if err != nil {
@@ -199,7 +192,16 @@ func (u *BlockUnlocker) unlockCandidates(block int64, candidates []*storage.Bloc
 				continue
 			}
 
-			if receipt == nil || receipt.Status != "0x1" {
+			// still in mempool, resend
+			if receipt == nil {
+				if _, err := u.rpc.SendRawTransaction(candidate.RawTx); err != nil {
+					log.Printf("Failed to send raw transaction %s: %v", candidate.TxHash, err)
+				}
+
+				continue
+			}
+
+			if receipt.Status != "0x1" {
 				log.Printf("Offline tx %s receipt failed: %s\n", candidate.TxHash, receipt.Status)
 				result.orphans++
 				candidate.Orphan = true

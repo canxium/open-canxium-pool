@@ -126,7 +126,7 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 				log.Printf("Failed to send raw transaction %v", err)
 			}
 
-			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration, rawTx, hash)
+			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration, rawTx, signedTx.Hash().String())
 			if exist {
 				return true, false
 			}
