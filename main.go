@@ -37,11 +37,19 @@ func startApi() {
 }
 
 func startBlockUnlocker() {
+	if cfg.Rpc != nil {
+		cfg.BlockUnlocker.Daemon = *cfg.Rpc
+	}
+
 	u := payouts.NewBlockUnlocker(&cfg.BlockUnlocker, backend, cfg.Network)
 	u.Start()
 }
 
 func startPayoutsProcessor() {
+	if cfg.Rpc != nil {
+		cfg.Payouts.Daemon = *cfg.Rpc
+	}
+
 	u := payouts.NewPayoutsProcessor(&cfg.Payouts, backend)
 	u.Start()
 }
@@ -102,6 +110,10 @@ func readConfig(cfg *proxy.Config) {
 
 	if coinbase, present := os.LookupEnv("MINING_COINBASE"); present {
 		cfg.Coinbase = common.HexToAddress(coinbase)
+	}
+
+	if rpc, present := os.LookupEnv("CANXIUM_RPC"); present {
+		cfg.Rpc = &rpc
 	}
 
 	log.Printf("Config loaded, chainId: %d, coinbase %v, algorithm: %v, difficulty: %d", cfg.ChainId, cfg.Coinbase, cfg.Algorithm, cfg.Difficulty)

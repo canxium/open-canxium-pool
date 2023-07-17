@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -83,6 +84,7 @@ type JSONRpcResp struct {
 }
 
 func NewRPCClient(name, url, timeout string) *RPCClient {
+	log.Printf("New rpc client for %v, upstream: %v", name, url)
 	rpcClient := &RPCClient{Name: name, Url: url}
 	timeoutIntv := util.MustParseDuration(timeout)
 	rpcClient.client = &http.Client{

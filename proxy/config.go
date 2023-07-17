@@ -40,6 +40,8 @@ type Config struct {
 	NewrelicKey     string `json:"newrelicKey"`
 	NewrelicVerbose bool   `json:"newrelicVerbose"`
 	NewrelicEnabled bool   `json:"newrelicEnabled"`
+
+	Rpc *string // overwrite all rpc url
 }
 
 func (c *Config) IsOfflineMining() bool {

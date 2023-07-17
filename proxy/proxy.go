@@ -94,6 +94,10 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 
 	proxy.upstreams = make([]*rpc.RPCClient, len(cfg.Upstream))
 	for i, v := range cfg.Upstream {
+		if cfg.Rpc != nil {
+			v.Url = *cfg.Rpc
+		}
+
 		proxy.upstreams[i] = rpc.NewRPCClient(v.Name, v.Url, v.Timeout)
 		log.Printf("Upstream: %s => %s", v.Name, v.Url)
 	}
