@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus/canxium"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
@@ -850,7 +849,7 @@ func getConstRewardCanxium(height int64, difficulty int64) *big.Int {
 		return PreHydroReward
 	}
 
-	reward := new(big.Int).Mul(ethash.CanxiumBlockRewardPerHash, big.NewInt(difficulty))
+	reward := new(big.Int).Mul(ethash.CanxiumRewardPerHash, big.NewInt(difficulty))
 	foundation := new(big.Int).Mul(ethash.CanxiumFoundationRewardPercent, reward)
 	foundation.Div(foundation, big.NewInt(100))
 	reward.Sub(reward, foundation)
@@ -1059,13 +1058,13 @@ func getUncleRewardExpanse(uHeight *big.Int, height *big.Int, reward *big.Int) *
 }
 
 func txMiningReward(difficulty *big.Int) (reward, foundation, coinbase *big.Int) {
-	reward = new(big.Int).Mul(canxium.CanxiumMiningTxRewardPerHash, difficulty)
+	reward = new(big.Int).Mul(ethash.CanxiumRewardPerHash, difficulty)
 
 	// Accumulate the rewards for the miner
 	// send reward to foundation wallet
-	foundation = new(big.Int).Mul(canxium.CanxiumMiningTxFoundationPercent, reward)
+	foundation = new(big.Int).Mul(ethash.CanxiumMiningTxFoundationPercent, reward)
 	foundation.Div(foundation, big100)
-	coinbase = new(big.Int).Mul(canxium.CanxiumMiningTxCoinbasePercent, reward)
+	coinbase = new(big.Int).Mul(ethash.CanxiumMiningTxCoinbasePercent, reward)
 	coinbase.Div(coinbase, big100)
 	reward.Sub(reward, foundation)
 	reward.Sub(reward, coinbase)

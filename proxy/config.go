@@ -26,10 +26,11 @@ type Config struct {
 	CoinName string         `json:"coin-name"`
 
 	// offline mining
-	Coinbase   common.Address `json:"coinbase"`
-	Algorithm  uint8          `json:"algorithm"`
-	ChainId    int64          `json:"chainId"`
-	Difficulty int64          `json:"difficulty"`
+	Coinbase       common.Address `json:"coinbase"`
+	Algorithm      uint8          `json:"algorithm"`
+	ChainId        int64          `json:"chainId"`
+	Difficulty     int64          `json:"difficulty"`
+	MiningContract common.Address `json:"miningContract"`
 
 	BlockUnlocker payouts.UnlockerConfig `json:"unlocker"`
 	Payouts       payouts.PayoutsConfig  `json:"payouts"`

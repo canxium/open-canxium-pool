@@ -112,6 +112,18 @@ func readConfig(cfg *proxy.Config) {
 		cfg.Coinbase = common.HexToAddress(coinbase)
 	}
 
+	if cfg.Coinbase == (common.Address{}) {
+		log.Fatalf("Invalid mining coinbase address: %v", cfg.Coinbase)
+	}
+
+	if contract, present := os.LookupEnv("MINING_CONTRACT"); present {
+		cfg.MiningContract = common.HexToAddress(contract)
+	}
+
+	if cfg.MiningContract == (common.Address{}) {
+		log.Fatalf("Invalid mining contract address: %v", cfg.MiningContract)
+	}
+
 	if rpc, present := os.LookupEnv("CANXIUM_RPC"); present {
 		cfg.Rpc = &rpc
 	}

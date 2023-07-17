@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/util"
+	"golang.org/x/crypto/sha3"
 )
 
 const maxBacklog = 10
@@ -134,16 +135,25 @@ func (s *ProxyServer) fetchPendingBlock() (*rpc.GetBlockReplyPart, uint64, int64
 }
 
 func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
+	mineFnSignature := []byte("mine(address)")
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(mineFnSignature)
+	methodID := hash.Sum(nil)[:4]
+	paddedAddress := common.LeftPadBytes(s.config.Coinbase.Bytes(), 32)
+
+	var data []byte
+	data = append(data, methodID...)
+	data = append(data, paddedAddress...)
 	miningTx := types.NewTx(&types.MiningTx{
 		ChainID:    big.NewInt(s.config.ChainId),
 		Nonce:      s.txNonce,
 		GasTipCap:  big.NewInt(0), // this kind of tx is gas free
 		GasFeeCap:  big.NewInt(0),
-		Gas:        21000, // transfer only
+		Gas:        100000,
 		From:       s.miner,
-		To:         s.config.Coinbase,
-		Value:      new(big.Int).Mul(ethash.CanxiumBlockRewardPerHash, big.NewInt(s.config.Difficulty)),
-		Data:       nil,
+		To:         s.config.MiningContract,
+		Value:      new(big.Int).Mul(ethash.CanxiumRewardPerHash, big.NewInt(s.config.Difficulty)),
+		Data:       data,
 		Algorithm:  s.config.Algorithm,
 		Difficulty: big.NewInt(s.config.Difficulty),
 	})

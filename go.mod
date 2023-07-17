@@ -2,7 +2,7 @@ module github.com/yuriy0803/open-etc-pool-friends
 
 go 1.18
 
-replace github.com/ethereum/go-ethereum v1.11.6 => github.com/canxium/go-canxium v0.1.1-0.20230709035518-0c4c4b91317a
+replace github.com/ethereum/go-ethereum v1.11.6 => github.com/canxium/go-canxium v0.1.1-0.20230716142946-47d05736f8da
 
 require (
 	github.com/ethereum/go-ethereum v1.11.6
@@ -10,6 +10,7 @@ require (
 	github.com/robfig/cron v1.2.0
 	github.com/yuriy0803/etchash v0.0.0-20230502204718-31f41f2b6e2e
 	github.com/yvasiyarov/gorelic v0.0.7
+	golang.org/x/crypto v0.8.0
 	gopkg.in/redis.v3 v3.6.4
 )
 
@@ -58,7 +59,6 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/yvasiyarov/go-metrics v0.0.0-20150112132944-c25f46c4b940 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
-	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
