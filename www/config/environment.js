@@ -33,6 +33,7 @@ module.exports = function(environment) {
         PoolFee: '0%',
         PayoutThreshold: '0 CAU',
         BlockReward: 0,
+        TxDifficulty: 1000000000, // same as api.json, for display only
   
         // For network hashrate (change for your favourite fork)
         BlockTime: 8.5

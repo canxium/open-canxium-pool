@@ -18,6 +18,7 @@ import (
 const maxBacklog = 10
 
 var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+var CanxiumRewardPerHash = big.NewInt(500)
 
 type heightDiffPair struct {
 	diff   *big.Int
@@ -32,7 +33,6 @@ type BlockTemplate struct {
 	Difficulty           *big.Int
 	Height               uint64
 	GetPendingBlockCache *rpc.GetBlockReplyPart
-	nonces               map[string]bool
 	headers              map[string]heightDiffPair
 	tx                   *types.Transaction
 }
@@ -152,7 +152,7 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 		Gas:        100000,
 		From:       s.miner,
 		To:         s.config.MiningContract,
-		Value:      new(big.Int).Mul(ethash.CanxiumRewardPerHash, big.NewInt(s.config.Difficulty)),
+		Value:      new(big.Int).Mul(CanxiumRewardPerHash, big.NewInt(s.config.Difficulty)),
 		Data:       data,
 		Algorithm:  s.config.Algorithm,
 		Difficulty: big.NewInt(s.config.Difficulty),
