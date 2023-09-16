@@ -108,7 +108,6 @@ func (u *PayoutsProcessor) Start() {
 func (u *PayoutsProcessor) process() {
 	if u.halt {
 		log.Println("Payments suspended due to last critical error:", u.lastFail)
-		os.Exit(1)
 		return
 	}
 	mustPay := 0

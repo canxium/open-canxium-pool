@@ -9,9 +9,9 @@
 
 	"coinbase": "0x0000000000000000000000000000000000000000",
 	"algorithm": 1,
-	"chainId": 3003,
-	"difficulty": 500000000000,
-	"miningContract": "0x0000000000000000000000000000000000000000",
+	"chainId": 30103,
+	"difficulty": 1000000000,
+	"miningContract": "0x66aBcd2775856f0561EB98c4954DBf79048032a4",
 
 	"proxy": {
 		"enabled": true,
@@ -86,7 +86,7 @@
 	"upstream": [
 		{
 			"name": "main",
-			"url": "https://rpc.canxium.org",
+			"url": "https://cerium-rpc.canxium.net",
 			"timeout": "10s"
 		}
 	],
@@ -120,7 +120,7 @@
 		"immatureDepth": 16,
 		"keepTxFees": false,
 		"interval": "1m",
-		"daemon": "https://rpc.canxium.org",
+		"daemon": "https://cerium-rpc.canxium.net",
 		"timeout": "10s"
 	},
 
@@ -128,7 +128,7 @@
 		"enabled": false,
 		"requirePeers": 1,
 		"interval": "2m",
-		"daemon": "https://rpc.canxium.org",
+		"daemon": "https://cerium-rpc.canxium.net",
 		"timeout": "10s",
 		"address": "0x0000000000000000000000000000000000000000",
 		"gas": "21000",

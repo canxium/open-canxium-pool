@@ -1,5 +1,4 @@
 FROM ubuntu:22.04
-WORKDIR /app
 RUN apt update
 RUN apt install software-properties-common -y
 RUN add-apt-repository ppa:longsleep/golang-backports
@@ -15,11 +14,18 @@ RUN apt install git -y
 
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 RUN apt install nginx -y
-COPY . .
+
+RUN npm install -g ember-cli@2.18
+RUN npm install -g bower
+COPY ./www/package.json /tmp/package.json
+RUN cd /tmp && npm install && ember install ember-truth-helpers && npm install jdenticon@2.1.0
+RUN mkdir -p /app/www && cp -a /tmp/node_modules /app/www
+
+WORKDIR /app
+COPY . /app
 RUN go mod download
 RUN go build  -o /out/main ./
-RUN cd /app/www/ && npm install -g ember-cli@2.18 && npm install -g bower && npm install && bower install && ember install ember-truth-helpers && npm install jdenticon@2.1.0
-RUN cd /app/www && chmod a+x build.sh && ./build.sh
+RUN cd /app/www && bower install && chmod a+x build.sh && ./build.sh
 EXPOSE 80/tcp
 EXPOSE 8008/tcp
 RUN chmod a+x /app/entrypoint.sh

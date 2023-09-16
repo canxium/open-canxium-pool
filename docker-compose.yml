@@ -1,0 +1,14 @@
+---
+version: '3'
+services:
+  txpool:
+    image: canxium/cerium-tx-pool:latest
+    container_name: cerium-txpool
+    environment:
+      MINING_DIFFICULTY: 1000000000
+      MINING_CONTRACT: 0x66aBcd2775856f0561EB98c4954DBf79048032a4
+      MINING_COINBASE: 0x0000000000000000000000000000000000000000
+      MINING_CHAIN_ID: 30103
+    ports:
+    - 4004:80
+    - 8008:8008
