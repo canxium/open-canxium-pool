@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"strconv"
@@ -18,7 +19,16 @@ import (
 const maxBacklog = 10
 
 var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
-var CanxiumRewardPerHash = big.NewInt(500)
+var (
+	CanxiumRewardPerHash = big.NewInt(500) // Reward in wei per difficulty hash for successfully mining upward from Canxium
+	// offline mining
+	CanxiumMiningTxMinimumDifficulty = big.NewInt(1000000000) // 500GH
+	CanxiumMaxTransactionReward      = big.NewInt(3750)
+	CanxiumMiningReduceBlock         = big.NewInt(432000) // Offline mining reward reduce 250 every 432000 blocks, max 13 months
+	CanxiumMiningReducePeriod        = big.NewInt(13)     // Max 13 months
+
+	HydroBlock = big.NewInt(100)
+)
 
 type heightDiffPair struct {
 	diff   *big.Int
@@ -135,6 +145,14 @@ func (s *ProxyServer) fetchPendingBlock() (*rpc.GetBlockReplyPart, uint64, int64
 }
 
 func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
+	_, pendingHeight, _, err := s.fetchPendingBlock()
+	if err != nil {
+		log.Printf("Error while refreshing pending block on %s: %s", err)
+		return
+	}
+
+	subsidy := TransactionMiningSubsidy(big.NewInt(int64(pendingHeight)))
+	fmt.Printf("Transaction mining subsidy for pending block %d is %s\n", pendingHeight, subsidy.String())
 	mineFnSignature := []byte("mine(address)")
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(mineFnSignature)
@@ -152,7 +170,7 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 		Gas:        100000,
 		From:       s.miner,
 		To:         s.config.MiningContract,
-		Value:      new(big.Int).Mul(CanxiumRewardPerHash, big.NewInt(s.config.Difficulty)),
+		Value:      new(big.Int).Mul(subsidy, big.NewInt(s.config.Difficulty)),
 		Data:       data,
 		Algorithm:  s.config.Algorithm,
 		Difficulty: big.NewInt(s.config.Difficulty),
@@ -200,4 +218,18 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 	if broadcast && s.config.Proxy.Stratum.Enabled {
 		go s.broadcastNewJobs()
 	}
+}
+
+func TransactionMiningSubsidy(block *big.Int) *big.Int {
+
+	blockPassed := new(big.Int).Sub(block, HydroBlock)
+	period := new(big.Int).Div(blockPassed, CanxiumMiningReduceBlock)
+	// reduce mining reward for max 13 period
+	if period.Cmp(CanxiumMiningReducePeriod) > 0 {
+		return CanxiumRewardPerHash
+	}
+
+	deduction := new(big.Int).Mul(CanxiumRewardPerHash, period)
+	reward := new(big.Int).Sub(CanxiumMaxTransactionReward, deduction)
+	return reward
 }

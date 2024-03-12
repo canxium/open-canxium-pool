@@ -17,9 +17,11 @@ RUN apt install nginx -y
 
 RUN npm install -g ember-cli@2.18
 RUN npm install -g bower
-COPY ./www/package.json /tmp/package.json
-RUN cd /tmp && npm install && ember install ember-truth-helpers && npm install jdenticon@2.1.0
-RUN mkdir -p /app/www && cp -a /tmp/node_modules /app/www
+
+RUN mkdir -p /modules
+COPY www /modules
+RUN cd /modules && npm install && bower install && ember install ember-truth-helpers && npm install jdenticon@2.1.0
+RUN mkdir -p /app/www && cp -a /modules/node_modules /app/www
 
 WORKDIR /app
 COPY . /app
