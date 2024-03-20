@@ -450,8 +450,8 @@ func (u *BlockUnlocker) handleOfflineTx(candidate *storage.BlockData) error {
 
 	candidate.Orphan = false
 	candidate.Hash = candidate.TxHash
-	difficulty := new(big.Int).SetInt64(candidate.Difficulty)
-	candidate.Reward, _, _ = txMiningReward(difficulty)
+	// reward already sent to miner's wallet, because this is personal mining pool.
+	candidate.Reward = big.NewInt(0)
 	return nil
 }
 
@@ -1053,19 +1053,4 @@ func getUncleRewardExpanse(uHeight *big.Int, height *big.Int, reward *big.Int) *
 	r.Div(r, big8)
 
 	return r
-}
-
-func txMiningReward(difficulty *big.Int) (reward, foundation, coinbase *big.Int) {
-	reward = new(big.Int).Mul(ethash.CanxiumRewardPerHash, difficulty)
-
-	// Accumulate the rewards for the miner
-	// send reward to foundation wallet
-	foundation = new(big.Int).Mul(ethash.CanxiumMiningTxFoundationPercent, reward)
-	foundation.Div(foundation, big100)
-	coinbase = new(big.Int).Mul(ethash.CanxiumMiningTxCoinbasePercent, reward)
-	coinbase.Div(coinbase, big100)
-	reward.Sub(reward, foundation)
-	reward.Sub(reward, coinbase)
-
-	return
 }

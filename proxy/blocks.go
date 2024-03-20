@@ -19,15 +19,16 @@ import (
 const maxBacklog = 10
 
 var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+var big0 = big.NewInt(0)
 var (
 	CanxiumRewardPerHash = big.NewInt(500) // Reward in wei per difficulty hash for successfully mining upward from Canxium
 	// offline mining
-	CanxiumMiningTxMinimumDifficulty = big.NewInt(1000000000) // 500GH
-	CanxiumMaxTransactionReward      = big.NewInt(3750)
-	CanxiumMiningReduceBlock         = big.NewInt(432000) // Offline mining reward reduce 250 every 432000 blocks, max 13 months
-	CanxiumMiningReducePeriod        = big.NewInt(13)     // Max 13 months
+	CanxiumMaxTransactionReward = big.NewInt(4250)
+	CanxiumMiningReduceBlock    = big.NewInt(432000) // Offline mining reward reduce 11.76% every 432000 blocks
+	CanxiumMiningReducePeriod   = big.NewInt(24)     // Max 24 months
+	CanxiumMiningPeriodPercent  = big.NewInt(8842)
 
-	HydroBlock = big.NewInt(100)
+	HydroBlock = big.NewInt(50)
 )
 
 type heightDiffPair struct {
@@ -153,7 +154,7 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 
 	subsidy := TransactionMiningSubsidy(big.NewInt(int64(pendingHeight)))
 	fmt.Printf("Transaction mining subsidy for pending block %d is %s\n", pendingHeight, subsidy.String())
-	mineFnSignature := []byte("mine(address)")
+	mineFnSignature := []byte("mining(address)")
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(mineFnSignature)
 	methodID := hash.Sum(nil)[:4]
@@ -221,15 +222,20 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 }
 
 func TransactionMiningSubsidy(block *big.Int) *big.Int {
-
 	blockPassed := new(big.Int).Sub(block, HydroBlock)
 	period := new(big.Int).Div(blockPassed, CanxiumMiningReduceBlock)
-	// reduce mining reward for max 13 period
-	if period.Cmp(CanxiumMiningReducePeriod) > 0 {
+	if period.Cmp(big0) == 0 {
+		return CanxiumMaxTransactionReward
+	}
+
+	// reduce mining reward for max 24 period
+	if period.Cmp(CanxiumMiningReducePeriod) >= 0 {
 		return CanxiumRewardPerHash
 	}
 
-	deduction := new(big.Int).Mul(CanxiumRewardPerHash, period)
-	reward := new(big.Int).Sub(CanxiumMaxTransactionReward, deduction)
-	return reward
+	exp := new(big.Int).Exp(CanxiumMiningPeriodPercent, period, nil)
+	percentage := new(big.Int).Exp(big.NewInt(10000), period, nil)
+	periodReward := new(big.Int).Mul(CanxiumMaxTransactionReward, exp)
+	subsidy := new(big.Int).Div(periodReward, percentage)
+	return subsidy
 }

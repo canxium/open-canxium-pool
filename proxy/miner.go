@@ -107,8 +107,21 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 		if s.config.IsOfflineMining() {
 			s.txNonce += 1
 			s.fetchTxTemplate(true)
-			t.tx.SetEthashPow(nonce, common.HexToHash(mixDigest))
-			signedTx, err := types.SignTx(t.tx, types.NewLondonSigner(big.NewInt(s.config.ChainId)), s.private)
+			signedTx, err := types.SignTx(types.NewTx(&types.MiningTx{
+				ChainID:    t.tx.ChainId(),
+				Nonce:      t.tx.Nonce(),
+				GasTipCap:  t.tx.GasTipCap(), // this kind of tx is gas free
+				GasFeeCap:  t.tx.GasFeeCap(),
+				Gas:        t.tx.Gas(),
+				From:       t.tx.From(),
+				To:         *t.tx.To(),
+				Value:      t.tx.Value(),
+				Data:       t.tx.Data(),
+				Algorithm:  t.tx.Algorithm(),
+				Difficulty: t.tx.Difficulty(),
+				PowNonce:   types.EncodePowNonce(nonce),
+				MixDigest:  common.HexToHash(mixDigest),
+			}), types.NewLondonSigner(big.NewInt(s.config.ChainId)), s.private)
 			if err != nil {
 				log.Printf("Failed to sign raw transaction error: %+v", err)
 				return false, false
