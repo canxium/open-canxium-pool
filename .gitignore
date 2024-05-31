@@ -8,3 +8,6 @@ testnet.json
 .idea/
 www/node_modules/
 new-web/node_modules/
+www/bower_components
+www/dist
+www/tmp

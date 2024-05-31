@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/storage"
@@ -60,8 +59,6 @@ var octaspaceStartReward = big.NewInt(650e+16)
 const byzantiumHardForkHeight = 800000
 
 // params for canxium
-const HydroForkBlock = 4204800
-
 var PreHydroReward = big.NewInt(1875e14)
 
 var homesteadExpanseReward = math.MustParseBig256("8000000000000000000")
@@ -843,14 +840,14 @@ func getConstRewardEthereumpow(height int64) *big.Int {
 }
 
 func getConstRewardCanxium(height int64, difficulty int64) *big.Int {
-	if height < HydroForkBlock {
+	if height < util.HydroForkBlock.Int64() {
 		return PreHydroReward
 	}
 
-	reward := new(big.Int).Mul(ethash.CanxiumRewardPerHash, big.NewInt(difficulty))
-	foundation := new(big.Int).Mul(ethash.CanxiumFoundationRewardPercent, reward)
-	foundation.Div(foundation, big.NewInt(100))
-	reward.Sub(reward, foundation)
+	subsidy := util.TransactionMiningSubsidy(big.NewInt(height))
+	reward := new(big.Int).Mul(subsidy, big.NewInt(difficulty))
+
+	// TODO: for mining pool with fee: Don't forget to - (treasuryTax + coinbaseTax + zeroOffTax) before pay for your miners
 	return reward
 }
 
