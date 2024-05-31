@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -51,10 +52,11 @@ type GetBlockReplyPart struct {
 const receiptStatusSuccessful = "0x1"
 
 type TxReceipt struct {
-	TxHash    string `json:"transactionHash"`
-	GasUsed   string `json:"gasUsed"`
-	BlockHash string `json:"blockHash"`
-	Status    string `json:"status"`
+	TxHash      string `json:"transactionHash"`
+	GasUsed     string `json:"gasUsed"`
+	BlockHash   string `json:"blockHash"`
+	BlockNumber string `json:"blockNumber"`
+	Status      string `json:"status"`
 }
 
 func (r *TxReceipt) Confirmed() bool {
@@ -82,6 +84,7 @@ type JSONRpcResp struct {
 }
 
 func NewRPCClient(name, url, timeout string) *RPCClient {
+	log.Printf("New rpc client for %v, upstream: %v", name, url)
 	rpcClient := &RPCClient{Name: name, Url: url}
 	timeoutIntv := util.MustParseDuration(timeout)
 	rpcClient.client = &http.Client{
@@ -238,6 +241,26 @@ func (r *RPCClient) SendTransaction(from, to, gas, gasPrice, value string, autoG
 	return reply, err
 }
 
+func (r *RPCClient) SendRawTransaction(rawTx string) (string, error) {
+	rpcResp, err := r.doPost(r.Url, "eth_sendRawTransaction", []string{rawTx})
+	var reply string
+	if err != nil {
+		return reply, err
+	}
+	err = json.Unmarshal(*rpcResp.Result, &reply)
+	if err != nil {
+		return reply, err
+	}
+	/* There is an inconsistence in a "standard". Geth returns error if it can't unlock signer account,
+	 * but Parity returns zero hash 0x000... if it can't send tx, so we must handle this case.
+	 * https://github.com/ethereum/wiki/wiki/JSON-RPC#returns-22
+	 */
+	if util.IsZeroHash(reply) {
+		err = errors.New("transaction is not yet available")
+	}
+	return reply, err
+}
+
 func (r *RPCClient) doPost(url string, method string, params interface{}) (*JSONRpcResp, error) {
 	jsonReq := map[string]interface{}{"jsonrpc": "2.0", "method": method, "params": params, "id": 0}
 	data, _ := json.Marshal(jsonReq)
@@ -268,7 +291,7 @@ func (r *RPCClient) doPost(url string, method string, params interface{}) (*JSON
 }
 
 func (r *RPCClient) Check() bool {
-	_, err := r.GetWork()
+	_, err := r.GetPendingBlock()
 	if err != nil {
 		return false
 	}

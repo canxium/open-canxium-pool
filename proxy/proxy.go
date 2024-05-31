@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -12,12 +14,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 
 	"github.com/yuriy0803/open-etc-pool-friends/policy"
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/storage"
 	"github.com/yuriy0803/open-etc-pool-friends/util"
+
+	"encoding/hex"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type ProxyServer struct {
@@ -37,6 +44,11 @@ type ProxyServer struct {
 	timeout    time.Duration
 	// Extranonce
 	Extranonces map[string]bool
+
+	// offline mining
+	miner   common.Address
+	private *ecdsa.PrivateKey
+	txNonce uint64
 }
 
 type staleJob struct {
@@ -82,6 +94,10 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 
 	proxy.upstreams = make([]*rpc.RPCClient, len(cfg.Upstream))
 	for i, v := range cfg.Upstream {
+		if cfg.Rpc != nil {
+			v.Url = *cfg.Rpc
+		}
+
 		proxy.upstreams[i] = rpc.NewRPCClient(v.Name, v.Url, v.Timeout)
 		log.Printf("Upstream: %s => %s", v.Name, v.Url)
 	}
@@ -93,7 +109,23 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 		go proxy.ListenTCP()
 	}
 
-	proxy.fetchBlockTemplate()
+	// creating mining account
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatalf("Failed to generate a canxium account: %+v", err)
+	}
+
+	// Get the address
+	proxy.miner = crypto.PubkeyToAddress(key.PublicKey)
+	privateKey, err := crypto.HexToECDSA(hex.EncodeToString(key.D.Bytes()))
+	if err != nil {
+		log.Fatalf("Failed to generate a canxium private key: %+v", err)
+	}
+
+	proxy.private = privateKey
+	proxy.txNonce = 0
+
+	proxy.fetchTemplate()
 
 	proxy.hashrateExpiration = util.MustParseDuration(cfg.Proxy.HashrateExpiration)
 
@@ -111,7 +143,7 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 		for {
 			select {
 			case <-refreshTimer.C:
-				proxy.fetchBlockTemplate()
+				proxy.fetchTemplate()
 				refreshTimer.Reset(refreshIntv)
 			}
 		}
@@ -131,6 +163,10 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 		for {
 			select {
 			case <-stateUpdateTimer.C:
+				if proxy.config.IsOfflineMining() {
+					continue
+				}
+
 				t := proxy.currentBlockTemplate()
 				if t != nil {
 					rpc := proxy.rpc()
@@ -286,6 +322,7 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 	// Handle RPC methods
 	switch req.Method {
 	case "eth_getWork":
+		fmt.Printf("Proxy: eth_getWork\n")
 		reply, errReply := s.handleGetWorkRPC(cs)
 		if errReply != nil {
 			cs.sendError(req.Id, errReply)
@@ -293,6 +330,7 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 		}
 		cs.sendResult(req.Id, &reply)
 	case "eth_submitWork":
+		fmt.Printf("Proxy: eth_submitWork\n")
 		if req.Params != nil {
 			var params []string
 			err := json.Unmarshal(req.Params, &params)
@@ -313,9 +351,11 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 			cs.sendError(req.Id, errReply)
 		}
 	case "eth_getBlockByNumber":
+		fmt.Printf("Proxy: eth_getBlockByNumber\n")
 		reply := s.handleGetBlockByNumberRPC()
 		cs.sendResult(req.Id, reply)
 	case "eth_submitHashrate":
+		fmt.Printf("Proxy: eth_submitHashrate\n")
 		cs.sendResult(req.Id, true)
 	default:
 		errReply := s.handleUnknownRPC(cs, req.Method)

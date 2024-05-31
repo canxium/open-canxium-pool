@@ -8,16 +8,19 @@ export default Ember.Route.extend({
     return Ember.$.getJSON(url).then(function(data) {
 			if (data.candidates) {
 				data.candidates = data.candidates.map(function(b) {
+					b.txHashUri = config.APP.Explorer + 'tx/' + b.txHash
 					return Block.create(b);
 				});
 			}
 			if (data.immature) {
 				data.immature = data.immature.map(function(b) {
+					b.txHashUri = config.APP.Explorer + 'tx/' + b.txHash
 					return Block.create(b);
 				});
 			}
 			if (data.matured) {
 				data.matured = data.matured.map(function(b) {
+					b.txHashUri = config.APP.Explorer + 'tx/' + b.txHash
 					return Block.create(b);
 				});
 			}

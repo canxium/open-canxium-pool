@@ -1,12 +1,14 @@
 package proxy
 
 import (
+	"encoding/hex"
 	"log"
 	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/yuriy0803/etchash"
 	"github.com/yuriy0803/open-etc-pool-friends/util"
 )
@@ -28,7 +30,7 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 			hasher = etchash.New(&ecip1099FBlockMordor, nil)
 		} else if s.config.Network == "ubiq" {
 			hasher = etchash.New(nil, &uip1FEpoch)
-		} else if s.config.Network == "ethereum" || s.config.Network == "ropsten" || s.config.Network == "ethereumPow" || s.config.Network == "ethereumFair" || s.config.Network == "callisto" || s.config.Network == "etica" || s.config.Network == "expanse" || s.config.Network == "octaspace" || s.config.Network == "universal" {
+		} else if s.config.Network == "canxium" || s.config.Network == "ethereum" || s.config.Network == "ropsten" || s.config.Network == "ethereumPow" || s.config.Network == "ethereumFair" || s.config.Network == "callisto" || s.config.Network == "etica" || s.config.Network == "expanse" || s.config.Network == "octaspace" || s.config.Network == "universal" {
 			hasher = etchash.New(nil, nil)
 		} else {
 			// unknown network
@@ -102,25 +104,73 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 	// check target difficulty
 	target := new(big.Int).Div(maxUint256, big.NewInt(h.diff.Int64()))
 	if result.Big().Cmp(target) <= 0 {
-		ok, err := s.rpc().SubmitBlock(params)
-		if err != nil {
-			log.Printf("Block submission failure at height %v for %v: %v", h.height, t.Header, err)
-		} else if !ok {
-			log.Printf("Block rejected at height %v for %v", h.height, t.Header)
-			return false, false
-		} else {
-			s.fetchBlockTemplate()
-			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration)
+		if s.config.IsOfflineMining() {
+			s.txNonce += 1
+			s.fetchTxTemplate(true)
+			signedTx, err := types.SignTx(types.NewTx(&types.MiningTx{
+				ChainID:    t.tx.ChainId(),
+				Nonce:      t.tx.Nonce(),
+				GasTipCap:  t.tx.GasTipCap(), // this kind of tx is gas free
+				GasFeeCap:  t.tx.GasFeeCap(),
+				Gas:        t.tx.Gas(),
+				From:       t.tx.From(),
+				To:         *t.tx.To(),
+				Value:      t.tx.Value(),
+				Data:       t.tx.Data(),
+				Algorithm:  t.tx.Algorithm(),
+				Difficulty: t.tx.Difficulty(),
+				PowNonce:   types.EncodePowNonce(nonce),
+				MixDigest:  common.HexToHash(mixDigest),
+			}), types.NewLondonSigner(big.NewInt(s.config.ChainId)), s.private)
+			if err != nil {
+				log.Printf("Failed to sign raw transaction error: %+v", err)
+				return false, false
+			}
+
+			tx, err := signedTx.MarshalBinary()
+			if err != nil {
+				log.Printf("Failed to marshal raw transaction error: %+v", err)
+				return false, false
+			}
+
+			rawTx := "0x" + hex.EncodeToString(tx)
+			hash, err := s.rpc().SendRawTransaction(rawTx)
+			if err != nil {
+				log.Printf("Failed to send raw transaction %v", err)
+			}
+
+			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration, rawTx, signedTx.Hash().String())
 			if exist {
 				return true, false
 			}
 			if err != nil {
-				log.Println("Failed to insert block candidate into backend:", err)
+				log.Println("Failed to insert tx candidate into backend:", err)
 			} else {
-				log.Printf("Inserted block %v to backend", h.height)
+				log.Printf("Inserted tx %v to backend", h.height)
 			}
-			log.Printf("Block found by miner %v@%v at height %d", login, ip, h.height)
+			log.Printf("Tx found by miner %v@%v at nonce %d, hash %s, rawtx %s", login, ip, h.height, hash, rawTx)
+		} else {
+			ok, err := s.rpc().SubmitBlock(params)
+			if err != nil {
+				log.Printf("Block submission failure at height %v for %v: %v", h.height, t.Header, err)
+			} else if !ok {
+				log.Printf("Block rejected at height %v for %v", h.height, t.Header)
+				return false, false
+			} else {
+				s.fetchBlockTemplate()
+				exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration, "", "")
+				if exist {
+					return true, false
+				}
+				if err != nil {
+					log.Println("Failed to insert block candidate into backend:", err)
+				} else {
+					log.Printf("Inserted block %v to backend", h.height)
+				}
+				log.Printf("Block found by miner %v@%v at height %d", login, ip, h.height)
+			}
 		}
+
 	} else {
 		exist, err := s.backend.WriteShare(login, id, params, shareDiff, shareDiffCalc, h.height, s.hashrateExpiration)
 		if exist {

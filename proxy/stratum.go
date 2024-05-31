@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"math/rand"
@@ -227,6 +228,7 @@ func (cs *Session) handleTCPMessage(s *ProxyServer, req *StratumReq) error {
 		}
 	}
 
+	fmt.Printf("Stratum: %s\n", req.Method)
 	if cs.stratumMode() == NiceHash {
 		switch req.Method {
 		case "mining.authorize":

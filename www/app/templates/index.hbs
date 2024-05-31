@@ -5,7 +5,7 @@
         <div class="row">
           <h1 style="font-size: 24px">
             <div class="etc-green">
-              <strong><span class="logo-2">ETC Pool</span></strong>
+              <strong><span class="logo-2">CAU Transaction Pool</span></strong>
             </div>
           </h1>
         </div>
@@ -25,9 +25,8 @@
         <div><i class="fa fa-clock-o"></i> AVG BLOCK TIME: <span>{{format-number stats.blockTime}} s</span></div>
       </div>
       <div class="col-md-4 stats">
-        <div><i class="fa fa-unlock-alt"></i> Network Difficulty: <span>{{with-metric-prefix stats.difficulty}}</span></div>
+        <div><i class="fa fa-unlock-alt"></i> Mining Difficulty: <span>{{with-metric-prefix config.TxDifficulty}}</span></div>
         <div><i class="fa fa-tachometer"></i> Network Hash Rate: <span>{{format-hashrate stats.hashrate}}</span></div>
-        <div><i class="fa fa-bars"></i> Blockchain Height: <span>{{format-number stats.height}}</span></div>
         <div><i class="fa fa-clock-o"></i> Current Round Variance: <span>{{format-number stats.roundVariance style='percent'}}</span></div>
         <div><i class="fa fa-credit-card-alt fa-fw"></i> Current price: <span>$ {{model.exchangedata.current_price}}</span></div>
       </div>

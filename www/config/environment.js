@@ -14,27 +14,29 @@ module.exports = function(environment) {
       },
   
       APP: {
+        Explorer: 'https://cerium-explorer.canxium.net/',
         // API host and port
-        ApiUrl: '//192.168.178.27/',
+        ApiUrl: '/',
   
         // HTTP mining endpoint
-        HttpHost: 'http://192.168.178.27',
+        HttpHost: 'http://127.0.0.1',
         HttpPort: 8888,
   
         // Stratum mining endpoint
-        StratumHost: 'example.net',
+        StratumHost: '127.0.0.1',
         StratumPort: 8008,
   
         // The ETC network
-        Unit: 'ETC',
+        Unit: 'CAU',
 
         // Fee and payout details
-        PoolFee: '1%',
-        PayoutThreshold: '0.5 ETC',
-        BlockReward: 2.56,
+        PoolFee: '0%',
+        PayoutThreshold: '0 CAU',
+        BlockReward: 0,
+        TxDifficulty: 1000000000, // same as api.json, for display only
   
         // For network hashrate (change for your favourite fork)
-        BlockTime: 13.2
+        BlockTime: 8.5
       }
     };
   

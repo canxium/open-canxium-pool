@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"strconv"
@@ -8,11 +9,16 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/yuriy0803/open-etc-pool-friends/rpc"
 	"github.com/yuriy0803/open-etc-pool-friends/util"
+	"golang.org/x/crypto/sha3"
 )
 
 const maxBacklog = 10
+
+var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 
 type heightDiffPair struct {
 	diff   *big.Int
@@ -27,8 +33,8 @@ type BlockTemplate struct {
 	Difficulty           *big.Int
 	Height               uint64
 	GetPendingBlockCache *rpc.GetBlockReplyPart
-	nonces               map[string]bool
 	headers              map[string]heightDiffPair
+	tx                   *types.Transaction
 }
 
 type Block struct {
@@ -44,6 +50,14 @@ func (b Block) HashNoNonce() common.Hash { return b.hashNoNonce }
 func (b Block) Nonce() uint64            { return b.nonce }
 func (b Block) MixDigest() common.Hash   { return b.mixDigest }
 func (b Block) NumberU64() uint64        { return b.number }
+
+func (s *ProxyServer) fetchTemplate() {
+	if s.config.IsOfflineMining() {
+		s.fetchTxTemplate(false)
+	} else {
+		s.fetchBlockTemplate()
+	}
+}
 
 func (s *ProxyServer) fetchBlockTemplate() {
 	rpc := s.rpc()
@@ -118,4 +132,80 @@ func (s *ProxyServer) fetchPendingBlock() (*rpc.GetBlockReplyPart, uint64, int64
 		return nil, 0, 0, err
 	}
 	return reply, blockNumber, blockDiff, nil
+}
+
+func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
+	_, pendingHeight, _, err := s.fetchPendingBlock()
+	if err != nil {
+		log.Printf("Error while refreshing pending block on %s: %s", err)
+		return
+	}
+
+	subsidy := util.TransactionMiningSubsidy(big.NewInt(int64(pendingHeight)))
+	fmt.Printf("Transaction mining subsidy for pending block %d is %s\n", pendingHeight, subsidy.String())
+	mineFnSignature := []byte("mining(address)")
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(mineFnSignature)
+	methodID := hash.Sum(nil)[:4]
+	paddedAddress := common.LeftPadBytes(s.config.Coinbase.Bytes(), 32)
+
+	var data []byte
+	data = append(data, methodID...)
+	data = append(data, paddedAddress...)
+	miningTx := types.NewTx(&types.MiningTx{
+		ChainID:    big.NewInt(s.config.ChainId),
+		Nonce:      s.txNonce,
+		GasTipCap:  big.NewInt(0), // this kind of tx is gas free
+		GasFeeCap:  big.NewInt(0),
+		Gas:        100000,
+		From:       s.miner,
+		To:         s.config.MiningContract,
+		Value:      new(big.Int).Mul(subsidy, big.NewInt(s.config.Difficulty)),
+		Data:       data,
+		Algorithm:  s.config.Algorithm,
+		Difficulty: big.NewInt(s.config.Difficulty),
+	})
+
+	newTemplate := BlockTemplate{
+		Header:               miningTx.SealHash().String(),
+		Seed:                 common.BytesToHash(ethash.SeedHash(miningTx.Nonce())).Hex(),
+		Target:               common.BytesToHash(new(big.Int).Div(two256, miningTx.Difficulty()).Bytes()).Hex(),
+		Height:               miningTx.Nonce(),
+		Difficulty:           miningTx.Difficulty(),
+		GetPendingBlockCache: nil,
+		headers:              make(map[string]heightDiffPair),
+		tx:                   miningTx,
+	}
+
+	newTemplate.headers[newTemplate.Header] = heightDiffPair{
+		diff:   util.TargetHexToDiff(newTemplate.Target),
+		height: miningTx.Nonce(),
+	}
+
+	t := s.currentBlockTemplate()
+
+	// No need to update, we have fresh job
+	if t != nil {
+		if t.Header == newTemplate.Header {
+			return
+		}
+		if _, ok := t.headers[newTemplate.Header]; ok {
+			return
+		}
+	}
+
+	height := miningTx.Nonce()
+	if t != nil {
+		for k, v := range t.headers {
+			if v.height > height-maxBacklog {
+				newTemplate.headers[k] = v
+			}
+		}
+	}
+
+	s.blockTemplate.Store(&newTemplate)
+	log.Printf("New tx to mine on %s at height %d / %s", s.miner, height, newTemplate.Header[0:10])
+	if broadcast && s.config.Proxy.Stratum.Enabled {
+		go s.broadcastNewJobs()
+	}
 }

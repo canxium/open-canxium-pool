@@ -10,8 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/yvasiyarov/gorelic"
 
 	"github.com/yuriy0803/open-etc-pool-friends/api"
@@ -35,11 +37,19 @@ func startApi() {
 }
 
 func startBlockUnlocker() {
+	if cfg.Rpc != nil {
+		cfg.BlockUnlocker.Daemon = *cfg.Rpc
+	}
+
 	u := payouts.NewBlockUnlocker(&cfg.BlockUnlocker, backend, cfg.Network)
 	u.Start()
 }
 
 func startPayoutsProcessor() {
+	if cfg.Rpc != nil {
+		cfg.Payouts.Daemon = *cfg.Rpc
+	}
+
 	u := payouts.NewPayoutsProcessor(&cfg.Payouts, backend)
 	u.Start()
 }
@@ -76,6 +86,49 @@ func readConfig(cfg *proxy.Config) {
 	if err := jsonParser.Decode(&cfg); err != nil {
 		log.Fatal("Config error: ", err.Error())
 	}
+
+	if difficulty, present := os.LookupEnv("MINING_DIFFICULTY"); present {
+		if n, err := strconv.ParseInt(difficulty, 10, 64); err == nil {
+			cfg.Difficulty = n
+
+		}
+	}
+
+	if chainId, present := os.LookupEnv("MINING_CHAIN_ID"); present {
+		if n, err := strconv.ParseInt(chainId, 10, 64); err == nil {
+			cfg.ChainId = n
+
+		}
+	}
+
+	if algorithm, present := os.LookupEnv("MINING_ALGORITHM"); present {
+		if n, err := strconv.ParseInt(algorithm, 10, 64); err == nil {
+			cfg.Algorithm = uint8(n)
+
+		}
+	}
+
+	if coinbase, present := os.LookupEnv("MINING_COINBASE"); present {
+		cfg.Coinbase = common.HexToAddress(coinbase)
+	}
+
+	if cfg.Coinbase == (common.Address{}) {
+		log.Fatalf("Invalid mining coinbase address: %v", cfg.Coinbase)
+	}
+
+	if contract, present := os.LookupEnv("MINING_CONTRACT"); present {
+		cfg.MiningContract = common.HexToAddress(contract)
+	}
+
+	if cfg.MiningContract == (common.Address{}) {
+		log.Fatalf("Invalid mining contract address: %v", cfg.MiningContract)
+	}
+
+	if rpc, present := os.LookupEnv("CANXIUM_RPC"); present {
+		cfg.Rpc = &rpc
+	}
+
+	log.Printf("Config loaded, chainId: %d, coinbase %v, algorithm: %v, difficulty: %d", cfg.ChainId, cfg.Coinbase, cfg.Algorithm, cfg.Difficulty)
 }
 
 func main() {
