@@ -12,7 +12,6 @@
 	"chainId": 3003,
 	"difficulty": 500000000000,
 	"miningContract": "0x6c6331CA2BC039996E833479b7c13Cc62Ab5c6BA",
-
 	"proxy": {
 		"enabled": true,
 		"listen": "0.0.0.0:8888",
