@@ -9,9 +9,9 @@
 
 	"coinbase": "0x0000000000000000000000000000000000000000",
 	"algorithm": 1,
-	"chainId": 30203,
-	"difficulty": 1000000000,
-	"miningContract": "0x22FF40D2d2aF25C5c277D4494C14fC5f49b61D51",
+	"chainId": 3003,
+	"difficulty": 500000000000,
+	"miningContract": "0x6c6331CA2BC039996E833479b7c13Cc62Ab5c6BA",
 
 	"proxy": {
 		"enabled": true,
@@ -21,7 +21,7 @@
 		"behindReverseProxy": false,
 		"blockRefreshInterval": "5s",
 		"stateUpdateInterval": "3s",
-		"difficulty": 1000000000,
+		"difficulty": 500000000000,
 		"hashrateExpiration": "3h",
 
 		"healthCheck": true,
@@ -86,7 +86,7 @@
 	"upstream": [
 		{
 			"name": "main",
-			"url": "https://pr-rpc.canxium.net",
+			"url": "https://rpc.canxium.org",
 			"timeout": "10s"
 		}
 	],
@@ -120,7 +120,7 @@
 		"immatureDepth": 16,
 		"keepTxFees": false,
 		"interval": "1m",
-		"daemon": "https://pr-rpc.canxium.net",
+		"daemon": "https://rpc.canxium.org",
 		"timeout": "10s"
 	},
 
@@ -128,7 +128,7 @@
 		"enabled": false,
 		"requirePeers": 1,
 		"interval": "2m",
-		"daemon": "https://pr-rpc.canxium.net",
+		"daemon": "https://rpc.canxium.org",
 		"timeout": "10s",
 		"address": "0x0000000000000000000000000000000000000000",
 		"gas": "21000",
