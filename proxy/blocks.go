@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -137,8 +138,8 @@ func (s *ProxyServer) fetchPendingBlock() (*rpc.GetBlockReplyPart, uint64, int64
 func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 	_, pendingHeight, _, err := s.fetchPendingBlock()
 	if err != nil {
-		log.Printf("Error while refreshing pending block on %s: %s", err)
-		return
+		log.Printf("Error while refreshing pending block number: %s, using offline mode", err)
+		pendingHeight = uint64(s.estimatePendingBlockNum())
 	}
 
 	subsidy := util.TransactionMiningSubsidy(big.NewInt(int64(pendingHeight)))
@@ -208,4 +209,14 @@ func (s *ProxyServer) fetchTxTemplate(broadcast bool) {
 	if broadcast && s.config.Proxy.Stratum.Enabled {
 		go s.broadcastNewJobs()
 	}
+}
+
+// Estimate current block number because of unable to get from RPC
+// this is an estimate, may not correct
+func (s *ProxyServer) estimatePendingBlockNum() int64 {
+	now := time.Now().Unix()
+	forkTime := 1719110848 // estimate time for block 4204800
+	diff := now - int64(forkTime)
+	diffInBlock := diff / 6
+	return diffInBlock + util.HydroForkBlock.Int64()
 }

@@ -30,7 +30,7 @@ var (
 	CanxiumMiningReducePeriod   = big.NewInt(24)     // Max 24 months
 	CanxiumMiningPeriodPercent  = big.NewInt(8842)
 
-	HydroForkBlock = big.NewInt(2500)
+	HydroForkBlock = big.NewInt(4204800)
 )
 
 func StringToBig(h string) *big.Int {
