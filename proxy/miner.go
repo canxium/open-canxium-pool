@@ -106,7 +106,6 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 	if result.Big().Cmp(target) <= 0 {
 		if s.config.IsOfflineMining() {
 			s.txNonce += 1
-			s.fetchTxTemplate(true)
 			signedTx, err := types.SignTx(types.NewTx(&types.MiningTx{
 				ChainID:    t.tx.ChainId(),
 				Nonce:      t.tx.Nonce(),
@@ -139,6 +138,7 @@ func (s *ProxyServer) processShare(login, id, ip string, t *BlockTemplate, param
 				log.Printf("Failed to send raw transaction %v", err)
 			}
 
+			s.fetchTxTemplate(true)
 			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, shareDiffCalc, h.diff.Int64(), h.height, s.hashrateExpiration, rawTx, signedTx.Hash().String())
 			if exist {
 				return true, false
